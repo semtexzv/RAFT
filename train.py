@@ -2,6 +2,7 @@ from __future__ import print_function, division
 from torch.utils.tensorboard import SummaryWriter
 import datasets
 import evaluate
+from core import DEVICE
 from core.raft import RAFT
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
@@ -140,7 +141,7 @@ def train(args):
     if args.restore_ckpt is not None:
         model.load_state_dict(torch.load(args.restore_ckpt), strict=False)
 
-    model.cuda()
+    model.to(DEVICE)
     model.train()
 
     if args.stage != 'chairs':
@@ -154,19 +155,18 @@ def train(args):
     logger = Logger(model, scheduler)
 
     VAL_FREQ = 5000
-    add_noise = True
 
     should_keep_training = True
     while should_keep_training:
 
         for i_batch, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
-            image1, image2, flow, valid = [x.cuda() for x in data_blob]
+            image1, image2, flow, valid = [x.to(DEVICE) for x in data_blob]
 
             if args.add_noise:
                 stdv = np.random.uniform(0.0, 5.0)
-                image1 = (image1 + stdv * torch.randn(*image1.shape).cuda()).clamp(0.0, 255.0)
-                image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
+                image1 = (image1 + stdv * torch.randn(*image1.shape).to(DEVICE)).clamp(0.0, 255.0)
+                image2 = (image2 + stdv * torch.randn(*image2.shape).to(DEVICE)).clamp(0.0, 255.0)
 
             flow_predictions = model(image1, image2, iters=args.iters)
 

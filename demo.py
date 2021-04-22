@@ -1,6 +1,7 @@
 from core.utils.utils import InputPadder
 from core.utils import flow_viz
 from core.raft import RAFT
+from core import DEVICE
 
 from PIL import Image
 import torch
@@ -9,9 +10,6 @@ import glob
 import cv2
 import os
 import argparse
-
-
-DEVICE = 'cuda'
 
 
 def load_image(imfile):
@@ -33,7 +31,7 @@ def viz(img, flo):
     # plt.show()
 
     cv2.imshow('image', img_flo[:, :, [2, 1, 0]] / 255.0)
-    cv2.waitKey()
+    cv2.waitKey(1)
 
 
 def demo(args):
@@ -56,7 +54,7 @@ def demo(args):
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
 
-            flow_low, flow_up = model(image1, image2, iters=20, test_mode=True)
+            flow_low, flow_up = model(image1, image2, iters=1, test_mode=True)
             viz(image1, flow_up)
 
 
