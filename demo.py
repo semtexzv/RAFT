@@ -1,21 +1,18 @@
-import sys
-sys.path.append('core')
+from core.utils.utils import InputPadder
+from core.utils import flow_viz
+from core.raft import RAFT
 
-import argparse
-import os
-import cv2
-import glob
-import numpy as np
-import torch
 from PIL import Image
-
-from raft import RAFT
-from utils import flow_viz
-from utils.utils import InputPadder
-
+import torch
+import numpy as np
+import glob
+import cv2
+import os
+import argparse
 
 
 DEVICE = 'cuda'
+
 
 def load_image(imfile):
     img = np.array(Image.open(imfile)).astype(np.uint8)
@@ -24,9 +21,9 @@ def load_image(imfile):
 
 
 def viz(img, flo):
-    img = img[0].permute(1,2,0).cpu().numpy()
-    flo = flo[0].permute(1,2,0).cpu().numpy()
-    
+    img = img[0].permute(1, 2, 0).cpu().numpy()
+    flo = flo[0].permute(1, 2, 0).cpu().numpy()
+
     # map flow to rgb image
     flo = flow_viz.flow_to_image(flo)
     img_flo = np.concatenate([img, flo], axis=0)
@@ -35,7 +32,7 @@ def viz(img, flo):
     # plt.imshow(img_flo / 255.0)
     # plt.show()
 
-    cv2.imshow('image', img_flo[:, :, [2,1,0]]/255.0)
+    cv2.imshow('image', img_flo[:, :, [2, 1, 0]] / 255.0)
     cv2.waitKey()
 
 
@@ -49,8 +46,8 @@ def demo(args):
 
     with torch.no_grad():
         images = glob.glob(os.path.join(args.path, '*.png')) + \
-                 glob.glob(os.path.join(args.path, '*.jpg'))
-        
+            glob.glob(os.path.join(args.path, '*.jpg'))
+
         images = sorted(images)
         for imfile1, imfile2 in zip(images[:-1], images[1:]):
             image1 = load_image(imfile1)

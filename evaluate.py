@@ -1,21 +1,18 @@
-import sys
-sys.path.append('core')
-
-from PIL import Image
-import argparse
-import os
-import time
-import numpy as np
-import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
+from core.utils.utils import InputPadder, forward_interpolate
+from core.raft import RAFT
+from core.utils import frame_utils
+from core.utils import flow_viz
 
 import datasets
-from utils import flow_viz
-from utils import frame_utils
-
-from raft import RAFT
-from utils.utils import InputPadder, forward_interpolate
+import matplotlib.pyplot as plt
+import torch.nn.functional as F
+import torch
+import numpy as np
+import time
+import os
+import argparse
+from PIL import Image
+import sys
 
 
 @torch.no_grad()
@@ -24,13 +21,13 @@ def create_sintel_submission(model, iters=32, warm_start=False, output_path='sin
     model.eval()
     for dstype in ['clean', 'final']:
         test_dataset = datasets.MpiSintel(split='test', aug_params=None, dstype=dstype)
-        
+
         flow_prev, sequence_prev = None, None
         for test_id in range(len(test_dataset)):
             image1, image2, (sequence, frame) = test_dataset[test_id]
             if sequence != sequence_prev:
                 flow_prev = None
-            
+
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1[None].cuda(), image2[None].cuda())
 
@@ -39,9 +36,9 @@ def create_sintel_submission(model, iters=32, warm_start=False, output_path='sin
 
             if warm_start:
                 flow_prev = forward_interpolate(flow_low[0])[None].cuda()
-            
+
             output_dir = os.path.join(output_path, dstype, sequence)
-            output_file = os.path.join(output_dir, 'frame%04d.flo' % (frame+1))
+            output_file = os.path.join(output_dir, 'frame%04d.flo' % (frame + 1))
 
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -117,9 +114,9 @@ def validate_sintel(model, iters=32):
 
         epe_all = np.concatenate(epe_list)
         epe = np.mean(epe_all)
-        px1 = np.mean(epe_all<1)
-        px3 = np.mean(epe_all<3)
-        px5 = np.mean(epe_all<5)
+        px1 = np.mean(epe_all < 1)
+        px3 = np.mean(epe_all < 3)
+        px5 = np.mean(epe_all < 5)
 
         print("Validation (%s) EPE: %f, 1px: %f, 3px: %f, 5px: %f" % (dstype, epe, px1, px3, px5))
         results[dstype] = np.mean(epe_list)
@@ -152,7 +149,7 @@ def validate_kitti(model, iters=24):
         mag = mag.view(-1)
         val = valid_gt.view(-1) >= 0.5
 
-        out = ((epe > 3.0) & ((epe/mag) > 0.05)).float()
+        out = ((epe > 3.0) & ((epe / mag) > 0.05)).float()
         epe_list.append(epe[val].mean().item())
         out_list.append(out[val].cpu().numpy())
 
@@ -193,5 +190,3 @@ if __name__ == '__main__':
 
         elif args.dataset == 'kitti':
             validate_kitti(model.module)
-
-
