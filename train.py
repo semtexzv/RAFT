@@ -219,6 +219,7 @@ if __name__ == '__main__':
     parser.add_argument('--stage', help="determines which dataset to use for training")
     parser.add_argument('--restore_ckpt', help="restore checkpoint")
     parser.add_argument('--small', action='store_true', help='use small model')
+    parser.add_argument('--tiny', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
 
     parser.add_argument('--lr', type=float, default=0.00002)

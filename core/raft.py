@@ -28,7 +28,13 @@ class RAFT(nn.Module):
         super().__init__()
         self.mixed_precision = args.mixed_precision if 'mixed_precision' in args else False
 
-        if args.small:
+        if args.tiny:
+            self.hidden_dim = hdim = 32
+            self.context_dim = cdim = 16
+            args.corr_levels = 4
+            args.corr_radius = 3
+
+        elif args.small:
             self.hidden_dim = hdim = 96
             self.context_dim = cdim = 64
             args.corr_levels = 4
@@ -49,7 +55,7 @@ class RAFT(nn.Module):
             self.corr = AlternateCorrBlock(radius=args.corr_radius)
 
         # feature network, context network, and update block
-        if args.small:
+        if args.small or args.tiny:
             self.fnet = SmallEncoder(output_dim=128, norm_fn='instance', dropout=args.dropout)
             self.cnet = SmallEncoder(output_dim=hdim + cdim, norm_fn='none', dropout=args.dropout)
             self.update_block = SmallUpdateBlock(args, hidden_dim=hdim, context_dim=self.context_dim)
