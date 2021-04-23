@@ -1,26 +1,29 @@
+from typing import Any, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from core.update import BasicUpdateBlock, SmallUpdateBlock
-from core.extractor import BasicEncoder, SmallEncoder
-from core.corr import CorrBlock, AlternateCorrBlock
-from core.utils.utils import bilinear_sampler, coords_grid, upflow8
+from .update import BasicUpdateBlock, SmallUpdateBlock
+from .extractor import BasicEncoder, SmallEncoder
+from .corr import CorrBlock, AlternateCorrBlock
+from .utils.utils import bilinear_sampler, coords_grid, upflow8
 
-try:
-    autocast = torch.cuda.amp.autocast
-except ImportError:
-    # dummy autocast for PyTorch < 1.6
-    class autocast:
-        def __init__(self, enabled):
-            pass
 
-        def __enter__(self):
-            pass
+# try:
+#     _autocast = torch.cuda.amp.autocast
+# except ImportError:
+# dummy autocast for PyTorch < 1.6
+class autocast:
+    def __init__(self, enabled: bool = True):
+        pass
 
-        def __exit__(self, *args):
-            pass
+    def __enter__(self):
+        pass
+
+    def __exit__(self, a: Any, b: Any, c: Any):
+        pass
 
 
 class RAFT(nn.Module):
@@ -92,11 +95,11 @@ class RAFT(nn.Module):
         up_flow = up_flow.permute(0, 1, 4, 2, 5, 3)
         return up_flow.reshape(N, 2, 8 * H, 8 * W)
 
-    def forward(self, image1, image2, iters=12, flow_init=None, upsample=True, test_mode=False):
+    def forward(self, image1, image2, iters: int, flow_init: Optional[torch.Tensor] = None, test_mode: bool =False):
         """ Estimate optical flow between pair of frames """
 
-        image1 = 2 * (image1 / 255.0) - 1.0
-        image2 = 2 * (image2 / 255.0) - 1.0
+        image1 = 2.0 * (image1 / 255.0) - 1.0
+        image2 = 2.0 * (image2 / 255.0) - 1.0
 
         image1 = image1.contiguous()
         image2 = image2.contiguous()
@@ -106,7 +109,11 @@ class RAFT(nn.Module):
 
         # run the feature network
         with autocast(enabled=self.mixed_precision):
-            fmap1, fmap2 = self.fnet([image1, image2])
+            # Disabled merging in batch dimension here. Caused problems for onnx tracing
+            fmap1 = self.fnet(image1)
+            fmap2 = self.fnet(image2)
+            # 2x 1, 128, 55, 128
+            # fmap1, fmap2 = self.fnet.forward_list([image1, image2])
 
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
@@ -121,8 +128,9 @@ class RAFT(nn.Module):
 
         coords0, coords1 = self.initialize_flow(image1)
 
-        if flow_init is not None:
-            coords1 = coords1 + flow_init
+        # TODO
+        # if flow_init:
+        #     coords1 = coords1 + flow_init
 
         flow_predictions = []
         for itr in range(iters):
@@ -145,6 +153,6 @@ class RAFT(nn.Module):
             flow_predictions.append(flow_up)
 
         if test_mode:
-            return coords1 - coords0, flow_up
+            return flow_predictions
 
         return flow_predictions

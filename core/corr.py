@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from core.utils.utils import bilinear_sampler, coords_grid
+from .utils.utils import bilinear_sampler, coords_grid
 
 try:
     import alt_cuda_corr
@@ -10,15 +10,27 @@ except ImportError:
     pass
 
 
+def _corr(fmap1, fmap2):
+    batch, dim, ht, wd = fmap1.shape
+    fmap1 = fmap1.view(batch, dim, ht * wd)
+    fmap2 = fmap2.view(batch, dim, ht * wd)
+
+    corr = torch.matmul(fmap1.transpose(1, 2), fmap2)
+    corr = corr.view(batch, ht, wd, 1, ht, wd)
+    return corr / torch.sqrt(torch.tensor(dim).float())
+
+
+@torch.jit.script
 class CorrBlock:
     def __init__(self, num_levels: int = 4, radius: int = 4):
         self.num_levels = num_levels
         self.radius = radius
+        self.corr_pyramid = []
 
     def regenerate(self, fmap1, fmap2):
         self.corr_pyramid = []
         # all pairs correlation
-        corr = CorrBlock.corr(fmap1, fmap2)
+        corr = _corr(fmap1, fmap2)
 
         batch, h1, w1, dim, h2, w2 = corr.shape
         corr = corr.reshape(batch * h1 * w1, dim, h2, w2)
@@ -50,16 +62,6 @@ class CorrBlock:
 
         out = torch.cat(out_pyramid, dim=-1)
         return out.permute(0, 3, 1, 2).contiguous().float()
-
-    @staticmethod
-    def corr(fmap1, fmap2):
-        batch, dim, ht, wd = fmap1.shape
-        fmap1 = fmap1.view(batch, dim, ht * wd)
-        fmap2 = fmap2.view(batch, dim, ht * wd)
-
-        corr = torch.matmul(fmap1.transpose(1, 2), fmap2)
-        corr = corr.view(batch, ht, wd, 1, ht, wd)
-        return corr / torch.sqrt(torch.tensor(dim).float())
 
 
 class AlternateCorrBlock:

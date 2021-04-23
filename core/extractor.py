@@ -210,6 +210,7 @@ class SmallEncoder(nn.Module):
         self.relu1 = nn.ReLU(inplace=True)
 
         self.in_planes = 32
+
         self.layer1 = self._make_layer(32, stride=1)
         self.layer2 = self._make_layer(64, stride=2)
         self.layer3 = self._make_layer(96, stride=2)
@@ -237,13 +238,13 @@ class SmallEncoder(nn.Module):
         self.in_planes = dim
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward_list(self, items):
+        res = []
+        for i in items:
+            res += [self.forward(i)]
+        return items
 
-        # if input is list, combine batch dimension
-        is_list = isinstance(x, tuple) or isinstance(x, list)
-        if is_list:
-            batch_dim = x[0].shape[0]
-            x = torch.cat(x, dim=0)
+    def forward(self, x):
 
         x = self.conv1(x)
         x = self.norm1(x)
@@ -256,8 +257,5 @@ class SmallEncoder(nn.Module):
 
         if self.training and self.dropout is not None:
             x = self.dropout(x)
-
-        if is_list:
-            x = torch.split(x, [batch_dim, batch_dim], dim=0)
 
         return x
